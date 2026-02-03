@@ -29,32 +29,34 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (activeTab === 'team') {
-            fetchUsers();
+            fetchAdmins();
         }
     }, [activeTab]);
 
-    const fetchUsers = async () => {
-        // Fetch ALL users to manage roles
-        const { data } = await supabase.from('users').select('*').order('created_at', { ascending: true });
+    const fetchAdmins = async () => {
+        const { data } = await supabase.from('admins').select('*').order('created_at', { ascending: true });
         setAdmins(data || []);
     };
 
-    // Promote or Demote
-    const toggleAdminRole = async (user) => {
-        const newStatus = !user.is_admin;
-        const action = newStatus ? 'Promote' : 'Demote';
+    const addAdmin = async (e) => {
+        e.preventDefault();
+        if (!newAdminEmail) return;
 
-        if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
+        try {
+            const { error } = await supabase.from('admins').insert([{ email: newAdminEmail }]);
+            if (error) throw error;
+            setNewAdminEmail('');
+            fetchAdmins();
+        } catch (error) {
+            alert(error.message);
+        }
+    };
 
-        const { error } = await supabase
-            .from('users')
-            .update({ is_admin: newStatus })
-            .eq('id', user.id);
-
-        if (error) {
-            alert(`Failed to update role: ${error.message}`);
-        } else {
-            fetchUsers();
+    const removeAdmin = async (id) => {
+        if (confirm('Remove this admin? They will lose access immediately.')) {
+            const { error } = await supabase.from('admins').delete().eq('id', id);
+            if (error) alert(error.message);
+            else fetchAdmins();
         }
     };
 
