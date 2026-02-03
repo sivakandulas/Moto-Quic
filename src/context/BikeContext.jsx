@@ -142,7 +142,15 @@ export function BikeProvider({ children }) {
     };
 
     const addBooking = async (booking) => {
-        // 1. Check Availability First
+        // 1. Get Current User (Required for 'My Trips')
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            alert("You must be logged in to book.");
+            return false;
+        }
+
+        // 2. Check Availability First
         const isAvailable = await checkAvailability(booking.bike_id, booking.start_date, booking.end_date);
 
         if (!isAvailable) {
@@ -150,36 +158,39 @@ export function BikeProvider({ children }) {
             return false; // Return failure
         }
 
-        // 2. Insert into Supabase
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Optimistic UI (Client-side only)
-        // FIX: Add user_id to optimistic object so it appears in 'My Trips' immediately
+        // 3. Optimistic UI (Immediate Feedback)
         const tempBooking = {
             ...booking,
             id: Date.now(),
             status: 'Pending',
-            user_id: user?.id
+            user_id: user.id
         };
-        setBookings([tempBooking, ...bookings]);
+        // Add to TOP of list
+        setBookings(prev => [tempBooking, ...prev]);
 
-        const { error } = await supabase.from('bookings').insert([{
+        // 4. Insert into Supabase (and fetch the real row back)
+        const { data: insertedData, error } = await supabase.from('bookings').insert([{
             bike_id: booking.bike_id,
-            user_id: user?.id, // Link booking to user
+            user_id: user.id, // Link booking to user
             guest_name: booking.guest_name,
             guest_phone: booking.guest_phone,
             start_date: booking.start_date,
             end_date: booking.end_date,
             total_price: booking.total_price,
             status: 'Pending'
-        }]);
+        }]).select();
 
         if (error) {
             console.error('Error adding booking:', error.message);
             alert(`Booking Failed: ${error.message}`);
-            fetchData(); // Revert
+            fetchData(); // Revert optimistic update
             return false;
         }
+
+        // 5. Success! Force refresh to sync strict RLS data
+        console.log("Booking successful, refreshing data...");
+        fetchData();
+
         return true; // Return success
     };
 
