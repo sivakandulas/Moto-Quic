@@ -11,6 +11,7 @@ import ReserveRide from './pages/ReserveRide';
 import { AuthProvider } from './context/AuthContext';
 import { BikeProvider } from './context/BikeContext';
 import Login from './pages/Login';
+// PWAInstallPrompt import removed
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
               <Route index element={<Dashboard />} />
             </Route>
           </Routes>
+          {/* PWAInstallPrompt removed */}
         </BrowserRouter>
       </BikeProvider>
     </AuthProvider>
