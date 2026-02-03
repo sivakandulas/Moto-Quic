@@ -29,31 +29,32 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (activeTab === 'team') {
-            fetchAdmins();
+            fetchUsers();
         }
     }, [activeTab]);
 
-    const fetchAdmins = async () => {
-        const { data } = await supabase.from('admins').select('*').order('created_at', { ascending: true });
+    const fetchUsers = async () => {
+        // Fetch ALL users to manage roles
+        const { data } = await supabase.from('users').select('*').order('created_at', { ascending: true });
         setAdmins(data || []);
     };
 
-    const addAdmin = async (e) => {
-        e.preventDefault();
-        const { error } = await supabase.from('admins').insert([{ email: newAdminEmail }]);
-        if (error) {
-            alert(error.message);
-        } else {
-            setNewAdminEmail('');
-            fetchAdmins();
-        }
-    };
+    // Promote or Demote
+    const toggleAdminRole = async (user) => {
+        const newStatus = !user.is_admin;
+        const action = newStatus ? 'Promote' : 'Demote';
 
-    const removeAdmin = async (id) => {
-        if (confirm('Remove this admin? They will lose access immediately.')) {
-            const { error } = await supabase.from('admins').delete().eq('id', id);
-            if (error) alert(error.message);
-            else fetchAdmins();
+        if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
+
+        const { error } = await supabase
+            .from('users')
+            .update({ is_admin: newStatus })
+            .eq('id', user.id);
+
+        if (error) {
+            alert(`Failed to update role: ${error.message}`);
+        } else {
+            fetchUsers();
         }
     };
 
@@ -231,7 +232,7 @@ export default function Dashboard() {
                             <h4 style={{ fontSize: '14px' }}>Admin Access Control</h4>
                         </div>
                         <p style={{ fontSize: '12px', color: '#888', marginBottom: '20px' }}>
-                            People listed here have <b>full access</b> to manage the fleet, view bookings, and edit this team list.
+                            People listed in the <b>Admins Table</b> have full control.
                         </p>
 
                         <form onSubmit={addAdmin} className="flex-between" style={{ gap: '10px', marginBottom: '20px' }}>

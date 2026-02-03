@@ -47,7 +47,11 @@ export function BikeProvider({ children }) {
             setBikes(bikesData || []);
 
             const { data: bookingsData, error: bookingsError } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-            if (bookingsError) throw bookingsError;
+            if (bookingsError) {
+                console.error('[Data] Error fetching bookings:', bookingsError.message);
+                throw bookingsError;
+            }
+            console.log(`[Data] Bookings fetched: ${bookingsData?.length || 0}`);
             setBookings(bookingsData || []);
         } catch (error) {
             console.error('Error fetching data:', error.message);

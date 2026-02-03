@@ -12,6 +12,7 @@ import { AuthProvider } from './context/AuthContext';
 import { BikeProvider } from './context/BikeContext';
 import Login from './pages/Login';
 // PWAInstallPrompt import removed
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -34,6 +35,9 @@ export default function App() {
             <Route path="/owner" element={<Layout />}>
               <Route index element={<Dashboard />} />
             </Route>
+
+            {/* 404 Catch-All */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           {/* PWAInstallPrompt removed */}
         </BrowserRouter>

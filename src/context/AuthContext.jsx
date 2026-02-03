@@ -13,8 +13,38 @@ export function AuthProvider({ children }) {
             setIsAdmin(false);
             return;
         }
-        const { data } = await supabase.from('admins').select('email').eq('email', email).single();
-        setIsAdmin(!!data);
+        console.log(`[Auth] Checking user role for: ${email}`);
+
+        // 1. Try to get the user from the 'users' table
+        let { data, error } = await supabase
+            .from('users')
+            .select('is_admin')
+            .eq('email', email)
+            .maybeSingle();
+
+        // 2. If user doesn't exist, Register them! (Upsert on Login)
+        if (!data && !error) {
+            console.log(`[Auth] New user detected. Registering: ${email}`);
+            const { data: newUser, error: createError } = await supabase
+                .from('users')
+                .insert([{ email: email, is_admin: false }])
+                .select()
+                .single();
+
+            if (createError) {
+                console.error("[Auth] Registration failed:", createError.message);
+            } else {
+                data = newUser;
+            }
+        }
+
+        if (error) {
+            console.error("[Auth] Role check failed:", error.message);
+        }
+
+        const isUserAdmin = data?.is_admin || false;
+        console.log(`[Auth] Is Admin? ${isUserAdmin}`);
+        setIsAdmin(isUserAdmin);
     };
 
     useEffect(() => {
