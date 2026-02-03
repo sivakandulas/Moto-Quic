@@ -125,23 +125,20 @@ export function BikeProvider({ children }) {
     };
 
     const checkAvailability = async (bikeId, startDate, endDate) => {
-        // Query for any booking for this bike that overlaps with the requested range
-        // Logic: (StartA <= EndB) and (EndA >= StartB)
-        const { data, error } = await supabase
-            .from('bookings')
-            .select('id')
-            .eq('bike_id', bikeId)
-            .or(`status.eq.Active,status.eq.Pending`) // Only check active/pending bookings
-            .lte('start_date', endDate)
-            .gte('end_date', startDate);
+        // Use secure RPC to check availability without exposing all booking data
+        const { data: isAvailable, error } = await supabase
+            .rpc('check_bike_availability', {
+                check_bike_id: bikeId,
+                check_start_date: startDate,
+                check_end_date: endDate
+            });
 
         if (error) {
-            console.error('Error checking availability:', error);
+            console.error('Error checking availability:', error.message);
             return false;
         }
 
-        // If any rows returned, it's not available
-        return data.length === 0;
+        return isAvailable;
     };
 
     const addBooking = async (booking) => {
@@ -153,12 +150,18 @@ export function BikeProvider({ children }) {
             return false; // Return failure
         }
 
-        // Optimistic UI (Client-side only)
-        const tempBooking = { ...booking, id: Date.now(), status: 'Pending' };
-        setBookings([tempBooking, ...bookings]);
-
         // 2. Insert into Supabase
         const { data: { user } } = await supabase.auth.getUser();
+
+        // Optimistic UI (Client-side only)
+        // FIX: Add user_id to optimistic object so it appears in 'My Trips' immediately
+        const tempBooking = {
+            ...booking,
+            id: Date.now(),
+            status: 'Pending',
+            user_id: user?.id
+        };
+        setBookings([tempBooking, ...bookings]);
 
         const { error } = await supabase.from('bookings').insert([{
             bike_id: booking.bike_id,
