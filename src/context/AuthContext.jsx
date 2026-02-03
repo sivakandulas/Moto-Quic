@@ -15,36 +15,28 @@ export function AuthProvider({ children }) {
         }
         console.log(`[Auth] Checking user role for: ${email}`);
 
-        // 1. Try to get the user from the 'users' table
-        let { data, error } = await supabase
+        // 1. Ensure user is in the 'users' directory (Upsert)
+        const { error: upsertError } = await supabase
             .from('users')
-            .select('is_admin')
-            .eq('email', email)
+            .upsert({ email: email }, { onConflict: 'email' })
+            .select()
             .maybeSingle();
 
-        // 2. If user doesn't exist, Register them! (Upsert on Login)
-        if (!data && !error) {
-            console.log(`[Auth] New user detected. Registering: ${email}`);
-            const { data: newUser, error: createError } = await supabase
-                .from('users')
-                .insert([{ email: email, is_admin: false }])
-                .select()
-                .single();
-
-            if (createError) {
-                console.error("[Auth] Registration failed:", createError.message);
-            } else {
-                data = newUser;
-            }
+        if (upsertError) {
+            console.error("[Auth] User registration failed:", upsertError.message);
         }
 
-        if (error) {
-            console.error("[Auth] Role check failed:", error.message);
-        }
+        // 2. CHECK IF ADMIN using the secure Stored Procedure
+        const { data: isAdminData, error: rpcError } = await supabase
+            .rpc('check_is_admin', { user_email: email });
 
-        const isUserAdmin = data?.is_admin || false;
-        console.log(`[Auth] Is Admin? ${isUserAdmin}`);
-        setIsAdmin(isUserAdmin);
+        if (rpcError) {
+            console.error("[Auth] Role check failed:", rpcError.message);
+            setIsAdmin(false);
+        } else {
+            console.log(`[Auth] Is Admin? ${isAdminData}`);
+            setIsAdmin(isAdminData);
+        }
     };
 
     useEffect(() => {
