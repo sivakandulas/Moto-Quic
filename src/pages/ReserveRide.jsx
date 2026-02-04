@@ -22,12 +22,15 @@ export default function ReserveRide() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [days, setDays] = useState(0);
 
-    // Initial load: Pre-fill user data
+    // Initial load: Pre-fill user data & Protect Route
     useEffect(() => {
-        if (user) {
+        if (!loading && !user) {
+            alert("You must be logged in to reserve a ride.");
+            navigate('/login');
+        } else if (user) {
             setName(user.user_metadata.full_name || '');
         }
-    }, [user]);
+    }, [user, loading, navigate]);
 
     // Calculate Price whenever dates change
     useEffect(() => {
@@ -50,6 +53,12 @@ export default function ReserveRide() {
     if (!bike) return <div className="fade-in">Bike not found</div>;
 
     const handleReserve = async () => {
+        if (!user) {
+            alert('You must be logged in to reserve a ride.');
+            navigate('/login');
+            return;
+        }
+
         if (!name.trim()) {
             alert('Please enter your full name.');
             return;

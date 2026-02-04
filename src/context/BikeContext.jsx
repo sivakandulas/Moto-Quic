@@ -1,17 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supaClient';
+import { useAuth } from './AuthContext';
 
 const BikeContext = createContext();
 
 export function BikeProvider({ children }) {
+    const { user } = useAuth(); // Access user state to trigger re-fetches
     const [bikes, setBikes] = useState([]);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch initial data
+    // Fetch data on load and when user changes (RLS needs updated auth context)
     useEffect(() => {
         fetchData();
+    }, [user]);
 
+    // specific useEffect only for subscriptions
+    useEffect(() => {
         // Realtime Subscription
         const channels = supabase.channel('content-updates')
             .on(
@@ -146,7 +151,9 @@ export function BikeProvider({ children }) {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            alert("You must be logged in to book.");
+            if (confirm("You must be logged in to book a ride. Go to Login page?")) {
+                window.location.href = '/login';
+            }
             return false;
         }
 
@@ -159,9 +166,10 @@ export function BikeProvider({ children }) {
         }
 
         // 3. Optimistic UI (Immediate Feedback)
+        const tempId = Date.now();
         const tempBooking = {
             ...booking,
-            id: Date.now(),
+            id: tempId,
             status: 'Pending',
             user_id: user.id
         };
@@ -183,13 +191,17 @@ export function BikeProvider({ children }) {
         if (error) {
             console.error('Error adding booking:', error.message);
             alert(`Booking Failed: ${error.message}`);
-            fetchData(); // Revert optimistic update
+            // Revert optimistic update
+            setBookings(prev => prev.filter(b => b.id !== tempId));
             return false;
         }
 
-        // 5. Success! Force refresh to sync strict RLS data
-        console.log("Booking successful, refreshing data...");
-        fetchData();
+        // 5. Success! Update the list with the REAL data from the server
+        // This is safer than refetch() because refetch might get stale data if replication is slow
+        if (insertedData && insertedData.length > 0) {
+            const realBooking = insertedData[0];
+            setBookings(prev => [realBooking, ...prev.filter(b => b.id !== tempId)]);
+        }
 
         return true; // Return success
     };

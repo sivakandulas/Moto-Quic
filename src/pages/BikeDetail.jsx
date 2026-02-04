@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Share2, ShieldCheck, FileText, Zap } from 'lucide-react';
 import { useBikes } from '../context/BikeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function BikeDetail() {
     const { id } = useParams();
@@ -30,6 +31,18 @@ export default function BikeDetail() {
     };
     const deposit = bike.deposit || 5000;
     const description = bike.description || 'Verified Condition.';
+
+    const { user } = useAuth();
+
+    const handleBookClick = () => {
+        if (!user) {
+            if (confirm("You must be logged in to book a ride. Go to Login page?")) {
+                navigate('/login');
+            }
+        } else {
+            navigate(`/reserve/${id}`);
+        }
+    };
 
     return (
         <div className="bike-detail-page fade-in" style={{ paddingBottom: '100px' }}>
@@ -142,9 +155,9 @@ export default function BikeDetail() {
                         <p style={{ fontSize: '12px', color: 'var(--color-warning)' }}>{bike.status}</p>
                     </div>
                 </div>
-                <Link to={`/reserve/${id}`} className="btn btn-primary" style={{ width: '100%', fontSize: '16px', height: '56px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button onClick={handleBookClick} className="btn btn-primary" style={{ width: '100%', fontSize: '16px', height: '56px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
                     BOOK NOW <Zap size={20} style={{ marginLeft: '8px' }} fill="white" />
-                </Link>
+                </button>
             </div>
 
             <style>{`
